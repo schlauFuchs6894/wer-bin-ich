@@ -23,7 +23,12 @@ if "zuweisungen" not in st.session_state:
     st.session_state.zuweisungen = {}
 if "aktueller_spieler" not in st.session_state:
     st.session_state.aktueller_spieler = 0
-
+if "ausgeschieden" not in st.session_state:
+    st.session_state.ausgeschieden = set()
+if "gewinner" not in st.session_state:
+    st.session_state.gewinner = set()
+if "raten_person" not in st.session_state:
+    st.session_state.raten_person = None
 
 # --- Phase 1: Anzahl Spieler ---
 if st.session_state.phase == "setup":
@@ -75,7 +80,6 @@ elif st.session_state.phase == "anzeige":
     person = st.session_state.zuweisungen[aktueller_name]
 
     st.success(f"👀 {aktueller_name}, **du bist:** {person}")
-
     st.write("Zeig das niemandem! 😜")
 
     if st.button("Weiter zum nächsten Spieler"):
@@ -86,12 +90,67 @@ elif st.session_state.phase == "anzeige":
             st.session_state.phase = "fertig"
         st.rerun()
 
-# --- Phase 5: Fertig ---
+# --- Phase 5: Fertig (Spielbeginn) ---
 elif st.session_state.phase == "fertig":
     st.balloons()
     st.success("🎉 Alle Spieler haben ihre Identität bekommen!")
     st.write("Das Spiel kann jetzt beginnen – stellt euch gegenseitig Fragen, um herauszufinden, wer ihr seid!")
-    if st.button("Nochmal spielen"):
+
+    st.divider()
+    st.subheader("🔍 Glaubst du, du kennst die Rolle eines anderen Spielers?")
+    if st.button("Ich kenne die Rolle des anderen!"):
+        st.session_state.phase = "raten"
+        st.rerun()
+
+    st.divider()
+    if st.button("Neues Spiel starten"):
         for key in list(st.session_state.keys()):
             del st.session_state[key]
+        st.rerun()
+
+# --- Phase 6: Raten ---
+elif st.session_state.phase == "raten":
+    st.subheader("Wähle den Spieler, dessen Rolle du zu kennen glaubst:")
+    namen = st.session_state.namen
+
+    for name in namen:
+        if name not in st.session_state.ausgeschieden and name not in st.session_state.gewinner:
+            if st.button(f"🔎 {name}"):
+                st.session_state.raten_person = name
+                st.session_state.phase = "raten_ergebnis"
+                st.rerun()
+
+    if st.button("Zurück"):
+        st.session_state.phase = "fertig"
+        st.session_state.raten_person = None
+        st.rerun()
+
+# --- Phase 7: Ergebnis des Ratens ---
+elif st.session_state.phase == "raten_ergebnis":
+    name = st.session_state.raten_person
+    person = st.session_state.zuweisungen[name]
+
+    st.subheader("Dein Tipp:")
+    st.write(f"👉 {name} war **{person}**?")
+    col1, col2 = st.columns(2)
+
+    with col1:
+        if st.button("✅ Richtig geraten!"):
+            st.session_state.gewinner.add(name)
+            st.success(f"🎉 {name} wurde richtig erkannt!")
+            st.session_state.phase = "fertig"
+            st.session_state.raten_person = None
+            st.rerun()
+
+    with col2:
+        if st.button("❌ Falsch geraten!"):
+            st.session_state.ausgeschieden.add(name)
+            st.error(f"💀 {name} wurde falsch geraten und ist ausgeschieden!")
+            st.session_state.phase = "fertig"
+            st.session_state.raten_person = None
+            st.rerun()
+
+    st.divider()
+    if st.button("Zurück zur Liste"):
+        st.session_state.phase = "raten"
         st.rerun()
